@@ -189,10 +189,22 @@ configure_prometheus() {
 	for i in rules rules.d files_sd; do
 		${SUDO} mkdir -p /etc/prometheus/${i}
 	done
-	str="Extracting ${OSchoices}. Wait process.."
-	printf "  %b %s\\n" "${INFO}" "${str}"
-	${SUDO} tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1 &
-	spinner $!
+
+	# local str="Extracting ${OSchoices}. Wait process.."
+	# printf "  %b %s\\n" "${INFO}" "${str}"
+	EXTRACT=$(
+		tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1
+	)
+
+	local str="Extract files. Wait process finish"
+	printf "  %b %s..." "${INFO}" "${str}"
+	# Create a command from the package cache variable
+	if eval " ${SUDO} ${EXTRACT}"; then
+		printf "%b  %b %s\\n" "${OVER}" "${TICK}" "${str}"
+	else
+		printf "%b  %b %s\\n" "${OVER}" "${CROSS}" "${str}"
+		echo "Verify log"
+	fi
 
 	${SUDO} mv /tmp/prometheus/{prometheus,promtool} /usr/local/bin/
 	${SUDO} mv /tmp/prometheus/prometheus.yml /etc/prometheus/prometheus.yml
@@ -248,6 +260,9 @@ main() {
 
 	configure_prometheus
 	create_systemd_services
+	${SUDO} systemctl daemon-reload
+	${SUDO} systemctl start prometheus
+	${SUDO} systemctl enable prometheus
 
 }
 
