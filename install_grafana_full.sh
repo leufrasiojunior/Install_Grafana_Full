@@ -167,14 +167,16 @@ get_available_releases() {
 		# exit if Cancel is selected
 		{
 			# shellcheck disable=SC2183
-			printf "  %b Processo Cancelado, Saindo %b\\n"
+			str="Process cancelled. Exiting..."
+			printf "  %b %s..." "${INFO}" "${str}"
 			exit 1
 		}
 
 	#Create directory to temp File
 	mkdir -p /tmp/prometheus
 	# shellcheck disable=SC2128
-	printf "  Aguarde o download do arquivo..."
+	str="Wait download process to "
+	printf "  %b %s %s..." "${INFO}" "${str}" "${OSchoices}\n"
 	curl -s "${REPO_PROMETHEUS}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -i - -P "/tmp/prometheus"
 }
 
@@ -187,7 +189,8 @@ configure_prometheus() {
 	for i in rules rules.d files_sd; do
 		${SUDO} mkdir -p /etc/prometheus/${i}
 	done
-	printf "Extraindo arquivos...\n"
+	str="Extracting "${OSchoices}". Wait process.."
+	printf "  %b %s\\n" "${INFO}" "${str}"
 	${SUDO} tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1 &
 	spinner $!
 
@@ -217,6 +220,8 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOF
+	str="Fix permissions to files.."
+	printf "  %b %s\\n" "${INFO}" "${str}"
 
 	for i in rules rules.d files_sd; do
 		${SUDO} chown -R prometheus:prometheus /etc/prometheus/${i}
