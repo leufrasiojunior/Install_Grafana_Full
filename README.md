@@ -22,4 +22,5 @@ This is particular project to learning shell script. This script install and con
 # Creation Diary
 
 23/08/2023 - Project Started
+
 24/08/2023 - Prometheus scripts worked
