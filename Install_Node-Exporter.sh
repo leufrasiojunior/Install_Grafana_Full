@@ -34,7 +34,7 @@ OVER="\\r\\033[K"
 INSTALL_DEPS=(curl wget whiptail)
 
 #Links
-REPO_PROMETHEUS=("https://api.github.com/repos/prometheus/prometheus/releases/latest")
+REPO_PROMETHEUS=("https://api.github.com/repos/prometheus/node_exporter/releases/latest")
 
 is_command() {
 	# Checks to see if the given command (passed as a string argument) exists on the system.
@@ -173,25 +173,17 @@ get_available_releases() {
 		}
 
 	#Create directory to temp File
-	mkdir -p /tmp/prometheus
+	mkdir -p /tmp/node
 	# shellcheck disable=SC2128
 	str="Wait download process to "
 	printf "  %b %s %s...\\n" "${INFO}" "${str}" "${OSchoices}"
-	curl -s "${REPO_PROMETHEUS[@]}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -qi - -P "/tmp/prometheus"
+	curl -s "${REPO_PROMETHEUS[@]}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -qi - -P "/tmp/node"
 }
 
-configure_prometheus() {
-	${SUDO} groupadd --system prometheus
-	${SUDO} useradd -s /sbin/nologin --system -g prometheus prometheus
-
-	${SUDO} mkdir /var/lib/prometheus
-
-	for i in rules rules.d files_sd; do
-		${SUDO} mkdir -p /etc/prometheus/${i}
-	done
+configure_node() {
 
 	EXTRACT=$(
-		tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1
+		tar xf /tmp/node/node_exporter*.tar.gz -C /tmp/node/ --strip-components=1
 	)
 	local str="Extract files. Wait process finish"
 	printf "  %b %s...\\n" "${INFO}" "${str}"
@@ -203,47 +195,33 @@ configure_prometheus() {
 		echo "Verify log"
 	fi
 
-	${SUDO} mv /tmp/prometheus/{prometheus,promtool} /usr/local/bin/
-	${SUDO} mv /tmp/prometheus/prometheus.yml /etc/prometheus/prometheus.yml
-	${SUDO} mv /tmp/prometheus/{consoles/,console_libraries/} /etc/prometheus/
+	${SUDO} cp /tmp/node/node_exporter /usr/local/bin
 }
 
 create_systemd_services() {
-	${SUDO} cat <<EOF >/etc/systemd/system/prometheus.service
+	${SUDO} cat <<EOF >/etc/systemd/system/node_exporter.service
 [Unit]
-Description=Prometheus
-Documentation=https://prometheus.io/docs/introduction/overview/
+Description=Node Exporter
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-Type=simple
 User=prometheus
-Group=prometheus
-ExecReload=/bin/kill -HUP \$MAINPID
-ExecStart=/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus --web.console.templates=/etc/prometheus/consoles --web.console.libraries=/etc/prometheus/console_libraries --web.listen-address=0.0.0.0:9090 --web.external-url=
-
-SyslogIdentifier=prometheus
-Restart=always
+ExecStart=/usr/local/bin/node_exporter
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
-	str="Fix permissions to files.."
-	printf "  %b %s\\n" "${INFO}" "${str}"
-	for i in rules rules.d files_sd; do
-		${SUDO} chown -R prometheus:prometheus /etc/prometheus/${i}
-	done
-
-	for i in rules rules.d files_sd; do
-		${SUDO} chmod -R 775 /etc/prometheus/${i}
-	done
-
-	${SUDO} chown -R prometheus:prometheus /var/lib/prometheus/
 
 	${SUDO} systemctl daemon-reload
-	${SUDO} systemctl start prometheus
-	${SUDO} systemctl enable prometheus
+	${SUDO} systemctl start node_exporter
+	${SUDO} systemctl enable node_exporter
+	${SUDO} cat <<EOF >>/etc/prometheus/prometheus.yml
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+EOF
+	${SUDO} systemctl restart prometheus
 }
 
 main() {
@@ -258,12 +236,12 @@ main() {
 	sleep 2
 	get_available_releases
 
-	configure_prometheus
+	configure_node
 	create_systemd_services
-	local str="Instalattion finished. Use this IP to access Prometheus:"
+	local str="Instalattion finished. Use this IP to access Metrics:"
 	IPv4bare="127.0.0.1"
 	IPV4_ADDRESS=$(ip -oneline -family inet address show | grep "${IPv4bare}/" | awk '{print $4}' | awk 'END {print}')
-	printf "	%b  %b %s\\n" "${OVER}" "${INFO}" "http://${IPV4_ADDRESS%/*}:9090"
+	printf "	%b  %b %s\\n" "${OVER}" "${INFO}" "http://${IPV4_ADDRESS%/*}:9100/metrics"
 
 }
 
