@@ -177,7 +177,7 @@ get_available_releases() {
 	# shellcheck disable=SC2128
 	str="Wait download process to "
 	printf "  %b %s %s..." "${INFO}" "${str}" "${OSchoices}\n"
-	curl -s "${REPO_PROMETHEUS}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -i - -P "/tmp/prometheus"
+	curl -s "${REPO_PROMETHEUS[@]}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -i - -P "/tmp/prometheus"
 }
 
 configure_prometheus() {
@@ -189,7 +189,7 @@ configure_prometheus() {
 	for i in rules rules.d files_sd; do
 		${SUDO} mkdir -p /etc/prometheus/${i}
 	done
-	str="Extracting "${OSchoices}". Wait process.."
+	str="Extracting ${OSchoices}. Wait process.."
 	printf "  %b %s\\n" "${INFO}" "${str}"
 	${SUDO} tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1 &
 	spinner $!
