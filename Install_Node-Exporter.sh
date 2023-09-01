@@ -72,26 +72,6 @@ spinner() {
 	#&>> /var/log/install.log & spinner $!
 }
 
-rootCheck() {
-	######## FIRST CHECK ########
-	# Must be root to install
-	if [[ "${EUID}" -eq 0 ]]; then
-		echo "${INFO} You are root."
-	else
-		echo "${INFO} sudo will be used for the install."
-
-		# Check if it is actually installed
-		# If it isn't, exit because the install cannot complete
-		if eval is_command sudo &>/dev/null; then
-			export SUDO="sudo"
-			export SUDOE="sudo -E"
-		else
-			echo "${INFO} Please install sudo or run this as root."
-			exit 1
-		fi
-	fi
-}
-
 update_package_cache() {
 	# Update package cache on apt based OSes. Do this every time since
 	# it's quick and packages can be updated at any time.
@@ -198,6 +178,12 @@ configure_node() {
 	${SUDO} cp /tmp/node/node_exporter /usr/local/bin
 }
 
+verify_users() {
+	# if [getent passwd prometheus > /dev/null]
+	return
+	#https://stackoverflow.com/questions/14810684/check-whether-a-user-exists#:~:text=user%20infomation%20is%20stored%20in,%22no%20such%20user%22%20message.
+}
+
 create_systemd_services() {
 	${SUDO} cat <<EOF >/etc/systemd/system/node_exporter.service
 [Unit]
@@ -226,13 +212,32 @@ EOF
 
 main() {
 
-	rootCheck
+	if [[ "${EUID}" -eq 0 ]]; then
+		# they are root and all is good
+		local str="Root user check"
+		printf "  %b %s\\n" "${TICK}" "${str}"
+	else
+		printf "  %b %bScript called with non-root privileges%b\\n" "${INFO}" "${COL_LIGHT_RED}" "${COL_NC}"
+		printf "  %b Sudo utility check" "${INFO}"
+		# If the sudo command exists, try rerunning as admin
+		if is_command sudo; then
+			printf "%b  %b Sudo utility check\\n" "${OVER}" "${TICK}"
+			if [[ "$0" == "bash" ]]; then
+				# Download the install script and run it with admin rights
+				exec curl -sSL https://raw.githubusercontent.com/leufrasiojunior/Install_Grafana_Full/main/Install_Node-Exporter.sh | sudo bash "$@"
+			else
+				# when run via calling local bash script
+				exec sudo bash "$0" "$@"
+			fi
+		fi
+	fi
 
 	update_package_cache &
 	spinner $!
 
 	notify_package_updates_available &
 	spinner $!
+
 	sleep 2
 	get_available_releases
 
@@ -245,4 +250,6 @@ main() {
 
 }
 
-main
+if [[ "${SKIP_INSTALL}" != true ]]; then
+	main "$@"
+fi
