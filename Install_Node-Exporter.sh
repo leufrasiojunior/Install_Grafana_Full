@@ -182,6 +182,7 @@ verify_users() {
 	# if [getent passwd prometheus > /dev/null]
 	return
 	#https://stackoverflow.com/questions/14810684/check-whether-a-user-exists#:~:text=user%20infomation%20is%20stored%20in,%22no%20such%20user%22%20message.
+	
 }
 
 create_systemd_services() {
