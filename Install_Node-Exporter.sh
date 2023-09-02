@@ -78,7 +78,7 @@ update_package_cache() {
 
 	# Local, named variables
 	local str="Update local cache of available packages"
-	printf "  %b %s..." "${INFO}" "${str}"
+	printf "  %b %s" "${INFO}" "${str}"
 	# Create a command from the package cache variable
 	if eval " ${SUDO} ${UPDATE_PKG_CACHE}" &>/dev/null; then
 		printf "%b  %b %s\\n" "${OVER}" "${TICK}" "${str}"
@@ -148,7 +148,7 @@ get_available_releases() {
 		{
 			# shellcheck disable=SC2183
 			str="Process cancelled. Exiting..."
-			printf "  %b %s..." "${INFO}" "${str}"
+			printf "  %b %s" "${INFO}" "${str}"
 			exit 1
 		}
 
@@ -156,7 +156,7 @@ get_available_releases() {
 	mkdir -p /tmp/node
 	# shellcheck disable=SC2128
 	str="Wait download process to "
-	printf "  %b %s %s...\\n" "${INFO}" "${str}" "${OSchoices}"
+	printf "  %b %s %s\\n" "${INFO}" "${str}" "${OSchoices}"
 	curl -s "${REPO_PROMETHEUS[@]}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -qi - -P "/tmp/node"
 }
 
@@ -166,7 +166,7 @@ configure_node() {
 		tar xf /tmp/node/node_exporter*.tar.gz -C /tmp/node/ --strip-components=1
 	)
 	local str="Extract files. Wait process finish"
-	printf "  %b %s...\\n" "${INFO}" "${str}"
+	printf "  %b %s\\n" "${INFO}" "${str}"
 	# Create a command from the package cache variable
 	if eval " ${SUDO} ${EXTRACT}"; then
 		printf "%b  %b %s\\n" "${OVER}" "${TICK}" "${str}"
