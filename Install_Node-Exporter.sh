@@ -201,7 +201,7 @@ After=network-online.target
 [Service]
 
 User=prometheus
-ExecStart=/sr/local/bin/node_exporter
+ExecStart=/usr/local/bin/node_exporter
 
 [Install]
 WantedBy=default.target
