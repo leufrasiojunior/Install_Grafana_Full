@@ -179,22 +179,29 @@ configure_node() {
 }
 
 verify_users() {
-	# if [getent passwd prometheus > /dev/null]
-	return
-	#https://stackoverflow.com/questions/14810684/check-whether-a-user-exists#:~:text=user%20infomation%20is%20stored%20in,%22no%20such%20user%22%20message.
-	
+	if (getent passwd prometheus >/dev/null); then
+		local str="user prometheus already created previously"
+		printf "%b  %b %s\\n" "${OVER}" "${INFO}" "${str}"
+		return 0
+	else
+		#Create user before install Node Exporter.
+		groupadd --system prometheus
+		useradd -s /sbin/nologin --system -g prometheus prometheus
+	fi
 }
 
 create_systemd_services() {
 	${SUDO} cat <<EOF >/etc/systemd/system/node_exporter.service
 [Unit]
+
 Description=Node Exporter
-Wants=network-online.target
+Want)=network-online.target
 After=network-online.target
 
 [Service]
+
 User=prometheus
-ExecStart=/usr/local/bin/node_exporter
+ExecStart=/sr/local/bin/node_exporter
 
 [Install]
 WantedBy=default.target
@@ -203,14 +210,17 @@ EOF
 	${SUDO} systemctl daemon-reload
 	${SUDO} systemctl start node_exporter
 	${SUDO} systemctl enable node_exporter
-	${SUDO} cat <<EOF >>/etc/prometheus/prometheus.yml
+
+	#Check installation prometheus to configure YAML.
+	if (which prometheus >/dev/null); then
+		${SUDO} cat <<EOF >>/etc/prometheus/prometheus.yml
   - job_name: 'node_exporter'
     static_configs:
       - targets: ['localhost:9100']
 EOF
-	${SUDO} systemctl restart prometheus
+		${SUDO} systemctl restart prometheus
+	fi
 }
-
 main() {
 
 	if [[ "${EUID}" -eq 0 ]]; then
@@ -232,7 +242,6 @@ main() {
 			fi
 		fi
 	fi
-
 	update_package_cache &
 	spinner $!
 
