@@ -72,26 +72,6 @@ spinner() {
 	#&>> /var/log/install.log & spinner $!
 }
 
-rootCheck() {
-	######## FIRST CHECK ########
-	# Must be root to install
-	if [[ "${EUID}" -eq 0 ]]; then
-		echo "${INFO} You are root."
-	else
-		echo "${INFO} sudo will be used for the install."
-
-		# Check if it is actually installed
-		# If it isn't, exit because the install cannot complete
-		if eval is_command sudo &>/dev/null; then
-			export SUDO="sudo"
-			export SUDOE="sudo -E"
-		else
-			echo "${INFO} Please install sudo or run this as root."
-			exit 1
-		fi
-	fi
-}
-
 update_package_cache() {
 	# Update package cache on apt based OSes. Do this every time since
 	# it's quick and packages can be updated at any time.
@@ -199,10 +179,16 @@ configure_node() {
 }
 
 verify_users() {
-	# if [getent passwd prometheus > /dev/null]
-	return
-	#https://stackoverflow.com/questions/14810684/check-whether-a-user-exists#:~:text=user%20infomation%20is%20stored%20in,%22no%20such%20user%22%20message.
-	
+	if (getent passwd prometheus >/dev/null); then
+		local str="user prometheus already created previously"
+		printf "%b  %b %s\\n" "${OVER}" "${INFO}" "${str}"
+		return 0
+	else
+		#Create user before install Node Exporter.
+		groupadd --system prometheus
+		useradd -s /sbin/nologin --system -g prometheus prometheus
+	fi
+
 }
 
 create_systemd_services() {
@@ -257,12 +243,12 @@ main() {
 			fi
 		fi
 	fi
-
 	update_package_cache &
 	spinner $!
 
 	notify_package_updates_available &
 	spinner $!
+
 	sleep 2
 	get_available_releases
 
@@ -275,4 +261,6 @@ main() {
 
 }
 
-main
+if [[ "${SKIP_INSTALL}" != true ]]; then
+	main "$@"
+fi
