@@ -250,7 +250,7 @@ main() {
 
 	sleep 2
 	get_available_releases
-
+	verify_users
 	configure_node
 	create_systemd_services
 	local str="Instalattion finished. Use this IP to access Metrics:"
