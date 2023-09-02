@@ -188,7 +188,6 @@ verify_users() {
 		groupadd --system prometheus
 		useradd -s /sbin/nologin --system -g prometheus prometheus
 	fi
-
 }
 
 create_systemd_services() {
