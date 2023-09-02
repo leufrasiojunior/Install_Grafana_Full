@@ -72,33 +72,13 @@ spinner() {
 	#&>> /var/log/install.log & spinner $!
 }
 
-rootCheck() {
-	######## FIRST CHECK ########
-	# Must be root to install
-	if [[ "${EUID}" -eq 0 ]]; then
-		echo "${INFO} You are root."
-	else
-		echo "${INFO} sudo will be used for the install."
-
-		# Check if it is actually installed
-		# If it isn't, exit because the install cannot complete
-		if eval is_command sudo &>/dev/null; then
-			export SUDO="sudo"
-			export SUDOE="sudo -E"
-		else
-			echo "${INFO} Please install sudo or run this as root."
-			exit 1
-		fi
-	fi
-}
-
 update_package_cache() {
 	# Update package cache on apt based OSes. Do this every time since
 	# it's quick and packages can be updated at any time.
 
 	# Local, named variables
 	local str="Update local cache of available packages"
-	printf "  %b %s..." "${INFO}" "${str}"
+	printf "  %b %s" "${INFO}" "${str}"
 	# Create a command from the package cache variable
 	if eval " ${SUDO} ${UPDATE_PKG_CACHE}" &>/dev/null; then
 		printf "%b  %b %s\\n" "${OVER}" "${TICK}" "${str}"
@@ -168,7 +148,7 @@ get_available_releases() {
 		{
 			# shellcheck disable=SC2183
 			str="Process cancelled. Exiting..."
-			printf "  %b %s..." "${INFO}" "${str}"
+			printf "  %b %s" "${INFO}" "${str}"
 			exit 1
 		}
 
@@ -176,7 +156,7 @@ get_available_releases() {
 	mkdir -p /tmp/prometheus
 	# shellcheck disable=SC2128
 	str="Wait download process to "
-	printf "  %b %s %s...\\n" "${INFO}" "${str}" "${OSchoices}"
+	printf "  %b %s %s\\n" "${INFO}" "${str}" "${OSchoices}"
 	curl -s "${REPO_PROMETHEUS[@]}" | grep browser_download_url | grep "${OSchoices}" | cut -d '"' -f 4 | wget -qi - -P "/tmp/prometheus"
 }
 
@@ -194,7 +174,7 @@ configure_prometheus() {
 		tar xf /tmp/prometheus/prometheus*.tar.gz -C /tmp/prometheus/ --strip-components=1
 	)
 	local str="Extract files. Wait process finish"
-	printf "  %b %s...\\n" "${INFO}" "${str}"
+	printf "  %b %s\\n" "${INFO}" "${str}"
 	# Create a command from the package cache variable
 	if eval " ${SUDO} ${EXTRACT}"; then
 		printf "%b  %b %s\\n" "${OVER}" "${TICK}" "${str}"
@@ -248,7 +228,25 @@ EOF
 
 main() {
 
-	rootCheck
+	if [[ "${EUID}" -eq 0 ]]; then
+		# they are root and all is good
+		local str="Root user check"
+		printf "  %b %s\\n" "${TICK}" "${str}"
+	else
+		printf "  %b %bScript called with non-root privileges%b\\n" "${INFO}" "${COL_LIGHT_RED}" "${COL_NC}"
+		printf "  %b Sudo utility check" "${INFO}"
+		# If the sudo command exists, try rerunning as admin
+		if is_command sudo; then
+			printf "%b  %b Sudo utility check\\n" "${OVER}" "${TICK}"
+			if [[ "$0" == "bash" ]]; then
+				# Download the install script and run it with admin rights
+				exec curl -sSL https://raw.githubusercontent.com/leufrasiojunior/Install_Grafana_Full/main/Install_Prometheus.sh | sudo bash "$@"
+			else
+				# when run via calling local bash script
+				exec sudo bash "$0" "$@"
+			fi
+		fi
+	fi
 
 	update_package_cache &
 	spinner $!
@@ -267,4 +265,6 @@ main() {
 
 }
 
-main
+if [[ "${SKIP_INSTALL}" != true ]]; then
+	main "$@"
+fi
