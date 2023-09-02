@@ -198,16 +198,25 @@ configure_node() {
 	${SUDO} cp /tmp/node/node_exporter /usr/local/bin
 }
 
+verify_users() {
+	# if [getent passwd prometheus > /dev/null]
+	return
+	#https://stackoverflow.com/questions/14810684/check-whether-a-user-exists#:~:text=user%20infomation%20is%20stored%20in,%22no%20such%20user%22%20message.
+	
+}
+
 create_systemd_services() {
 	${SUDO} cat <<EOF >/etc/systemd/system/node_exporter.service
 [Unit]
+
 Description=Node Exporter
-Wants=network-online.target
+Want)=network-online.target
 After=network-online.target
 
 [Service]
+
 User=prometheus
-ExecStart=/usr/local/bin/node_exporter
+ExecStart=/sr/local/bin/node_exporter
 
 [Install]
 WantedBy=default.target
@@ -216,17 +225,38 @@ EOF
 	${SUDO} systemctl daemon-reload
 	${SUDO} systemctl start node_exporter
 	${SUDO} systemctl enable node_exporter
-	${SUDO} cat <<EOF >>/etc/prometheus/prometheus.yml
+
+	#Check installation prometheus to configure YAML.
+	if (which prometheus >/dev/null); then
+		${SUDO} cat <<EOF >>/etc/prometheus/prometheus.yml
   - job_name: 'node_exporter'
     static_configs:
       - targets: ['localhost:9100']
 EOF
-	${SUDO} systemctl restart prometheus
+		${SUDO} systemctl restart prometheus
+	fi
 }
-
 main() {
 
-	rootCheck
+	if [[ "${EUID}" -eq 0 ]]; then
+		# they are root and all is good
+		local str="Root user check"
+		printf "  %b %s\\n" "${TICK}" "${str}"
+	else
+		printf "  %b %bScript called with non-root privileges%b\\n" "${INFO}" "${COL_LIGHT_RED}" "${COL_NC}"
+		printf "  %b Sudo utility check" "${INFO}"
+		# If the sudo command exists, try rerunning as admin
+		if is_command sudo; then
+			printf "%b  %b Sudo utility check\\n" "${OVER}" "${TICK}"
+			if [[ "$0" == "bash" ]]; then
+				# Download the install script and run it with admin rights
+				exec curl -sSL https://raw.githubusercontent.com/leufrasiojunior/Install_Grafana_Full/main/Install_Node-Exporter.sh | sudo bash "$@"
+			else
+				# when run via calling local bash script
+				exec sudo bash "$0" "$@"
+			fi
+		fi
+	fi
 
 	update_package_cache &
 	spinner $!
